@@ -1,10 +1,16 @@
-# ACM-Template
+ACM-Template
 
 ## 介绍
 
 鱼竿的ACM模板库，借助GitHub辅助多人协作以及版本更新
 
 ## 贡献者&感谢名单
+
+| 用户        | 友链                                                         |
+| ----------- | ------------------------------------------------------------ |
+| PokIsemaine | [CSDN](https://blog.csdn.net/qq_39354847?spm=1001.2014.3001.5343),[GitHub](https://github.com/PokIsemaine) |
+|             |                                                              |
+|             |                                                              |
 
 
 
