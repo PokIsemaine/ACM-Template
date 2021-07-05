@@ -6,23 +6,20 @@ E-mail:851892190@qq.com
 
 参考：acwing板子（以这个为主+个人做题经验补充），洛谷题解，各类博客，各平台比赛，算法竞赛进阶指南
 
-版本：2021/5/1
+版本：2021/6/13
 
 更新内容：
 
-1. 组合数各种求法
-2. 博弈论基础
-3. 线性筛预处理加速
-4. 删除不必要的东西与目录分支
-5. 新增__int128
-6. 新增扩展欧几里得解同余方程
+1. 线段树
+3. vector邻接表存图
+3. 并查集修正
+4. 树形DP
+5. 
 
 ------
 
 
 [TOC]
-
-
 
 * * *
 ### 复杂度反推
@@ -72,7 +69,6 @@ E-mail:851892190@qq.com
 
 **[试除法](https://www.acwing.com/problem/content/868/)**
 
-Pt.1
 ```c++
 bool is_prime(long long x)
 {
@@ -81,18 +77,6 @@ bool is_prime(long long x)
         if (x % i == 0)
             return false;
     return true;
-}
-```
-Pt.2
-```cpp
-template<typename T>
-bool Is_prime(T a){
-    if(a <= 1)  return false;
-    if(a == 2 || a == 3)    return true;
-    if(a % 6 != 1 && a % 6 != 5)    return false;
-    for(int i = 5 ; i * i <= n ; i += 6){
-        if(n % i == 0 || n % (i + 2) == 0)  return 0;
-    }
 }
 ```
 **埃氏筛**
@@ -138,6 +122,12 @@ void get_primes(int n)
     }
 }
 ```
+**大范围区间筛素数**
+
+```c++
+
+```
+
 **线性筛加速质因数分解**
 
 ```c++
@@ -256,6 +246,148 @@ void divide(int n)
 将n（0<=n<=2^31）的阶乘分解质因数，求其中有多少个m。
 while(n/m) ans+=n/m,n/=m;
 */
+```
+
+**Pollard-rho大数分解法$O(N^{1/4})$**
+
+```C++
+#include <iostream>
+#include <time.h>
+#include <algorithm>
+#include <stdio.h>
+
+typedef long long LL;
+
+using namespace std;
+
+const int times = 20;
+LL fac[1001];
+int cnt;
+
+LL mul(LL a,LL b,LL mod){
+    LL ans = 0;
+    while (b){
+        if (b & 1){
+            ans = (ans + a) % mod;
+        }
+        a = (a<<1) % mod;
+        b >>= 1;
+    }
+    return ans;
+}
+
+
+LL pow(LL a,LL b,LL mod){
+    LL ans = 1;
+    while (b){
+        if (b & 1){
+            ans = mul(ans,a,mod);
+        }
+        b >>= 1;
+        a = mul(a,a,mod);
+    }
+    return ans;
+}
+
+
+bool witness(LL a,LL n){
+    LL temp = n - 1;
+    int j = 0;
+    while (temp % 2 == 0){  // 其实就是得到 m
+        j++;
+        temp /= 2;
+    }
+    LL x = pow(a,temp,n);
+    if (x == 1 || x == n-1){   // 判断a^m
+        return true;
+    }
+    while (j--){
+        x = mul(x,x,n);  // 进一步判断 a^(2m)  a^(4m) ...
+        if (x == n-1)
+            return true;
+    }
+    return false;
+}
+
+bool miller_rabin(LL n){
+    if (n == 2){ //  如果是2肯定是素数
+        return true;
+    }
+    if (n<2 || n % 2 == 0){ //如果小于2或者是大于2的偶数肯定不是素数
+        return false;
+    }
+    for (int i=0;i<times;i++){ //随机化检验
+        LL a = rand() % (n-1) + 1;
+        if (!witness(a,n))
+            return false;
+    }
+    return true;
+}
+
+LL gcd(LL a,LL b){ // 这里的gcd和一般的gcd不一样
+    if (a == 0){  // pollard_rho的需要
+        return 1;
+    }
+    if (a < 0){ // 可能有负数
+        return gcd(-a,b);
+    }
+    while (b){
+        LL t = a % b;
+        a = b;
+        b = t;
+    }
+    return a;
+}
+
+LL pollard_rho(LL n,LL c){ // 找因子
+    LL i = 1,k = 2; // 用来判断是否成环
+    LL xx = rand() % n,y = xx;
+    while (1){
+        i++;
+        xx = (mul(xx,xx,n) + c) % n;
+        LL d = gcd(y-xx,n);
+        if (1<d && d<n){ // 找到一个因数
+            return d;
+        }
+        if (y == xx){ // 出现循环，那么查找失败
+            return n;
+        }
+        if (i == k){ // 相当一个优化？
+            y = xx;
+            k <<= 1;
+        }
+    }
+}
+
+void find(LL n){ // 通过因数来找质因子
+    if (miller_rabin(n)){
+        fac[cnt++] = n; // 记录质因子
+        return ;
+    }
+    LL p = n;
+    while (p >= n)
+        p = pollard_rho(p,rand() % (n-1) + 1); //如果转了一圈还是p那么继续
+    find(p);
+    find(n/p);
+}
+
+int main(){
+    srand(time(NULL));
+    int t;
+    scanf("%d",&t);
+    while (t--){
+        LL x;
+        scanf("%lld",&x);
+        if (miller_rabin(x)){
+            printf("Prime\n");
+            continue;
+        }
+        cnt = 0;
+        find(x);
+        for(int i=0;i<cnt;i++)printf("%lld\n",fac[i]);
+    }
+    return 0;
+}
 ```
 
 **[试除法求约数](https://www.acwing.com/problem/content/871/)**
@@ -631,6 +763,37 @@ for (int i = 0; i < cnt; i ++ )     // 用高精度乘法将所有质因子相�
         res = mul(res, primes[i]);
 ```
 
+#### Stirling数
+
+**第一类**
+
+**第二类**
+
+用于求解n个不同小球分为m相同堆，且不存在空的方案数
+
+```c++
+for(int i=1;i<=n;i++){
+		stir[i][i]=1;
+		stir[i][0]=0;
+	}
+	for(int i=2;i<=n;i++)
+		for(int j=1;j<=m;j++)
+			stir[i][j]=stir[i-1][j]*j+stir[i-1][j-1];
+```
+
+**Bell数**
+
+Bell（n）为基数为n的集合划分方案数(非空），他是第二类stirling数之和
+
+$Bell(n)=\sum_{k=1}^nStirling(n,k)$
+
+#### 错排
+
+```c++
+LL D[N]={1,0};//0是1，1是0别写错了
+for(int i=2;i<=N;i++)D[i]=(i-1)*(D[i-1]+D[i-2])%mod;
+```
+
 
 
 #### 阶乘
@@ -957,6 +1120,51 @@ a+b=a|b+2(a&b)	若a+b=a|b-->a&b=0
 若a-b=a|b-->a-b每一位不能发生借位,即若a已知,对于a的每一位,若为1，则可以01若为0，则指南0
 ```
 
+#### 连续自然数异或前缀和O(1)
+
+```c++
+LL f(LL x)
+{
+	if(x%4==1)return 1;
+	if(x%4==2)return x+1;
+	if(x%4==3)return 0;
+	if(x%4==0)return x;
+}
+```
+
+#### 等差数列异或和
+
+```c++
+#include<cstdio>
+#include<algorithm>
+#include<iostream>
+#include<cstring>
+using namespace std;
+typedef long long LL;
+LL x,y,z;//x是首项   y是不能超过y z是公差 
+LL f (LL a,LL b,LL c,LL n)//首项   公差   c    项数 
+{
+
+	if (n==0) return 0;
+	LL ans=(b/c)*n*(n-1)/2+(a/c)*n;
+	ans=ans+f((b*n+a)%c,c,b%c,((b%c)*n+(a%c))/c);
+	return ans;
+}
+int main()
+{
+	while (scanf("%I64d%I64d%I64d",&x,&y,&z)!=EOF)
+	{
+	LL ans=0;
+	for (LL u=0;u<32;u++)
+		ans=ans|((f(x,z,(1LL<<u),(y-x)/z+1)&1)<<u);
+	printf("%I64d\n",ans);
+	}
+	return 0;
+}
+```
+
+
+
 #### 求二进制中1的个数
 
 **暴力O(logN)**
@@ -983,17 +1191,6 @@ int count(int x)
 ```
 
 #### log2(x)取整
-
-**求log_2(x)（暴力）O（logx）**
-
-```c++
-int log_2(int x)
-{
-    int res = 0;
-    while (x >> 1) res ++ , x >>= 1;
-    return res;
-}
-```
 
 **求log_2(x)（二分） O(loglogx)**
 
@@ -1045,14 +1242,15 @@ int add(int a, int b)
 #### 快速幂
 
 ```c++
+//如果mod 1e18级别，改成加法防爆
 int quick(int a,int b)
 {
     int res=1;
     a=a%mod;
     while(b)
     { 
-        if(b&1) res=(res*a)%mod;
-        a=(a*a)%mod;
+        if(b&1) res=(res*a)%mod;//改成+
+        a=(a*a)%mod;//改成+
         b>>=1;
     }
     return res;
@@ -1060,6 +1258,8 @@ int quick(int a,int b)
 ```
 
 ### 高精
+
+vector开O2优化才能和数组媲美
 
 A+B
 
@@ -1286,32 +1486,7 @@ a.clear();
 ```
 * * *
 ### 排序
-#### 归并
-
-**排序**
-
-```c++
-int q[N],tmp[N];
-void merge_sort(int q[],int l,int r)//这里只有<=/>=没有</>
-{
-    if(l>=r)return;
-    int mid=l+r>>1;
-    merge_sort(q,l,mid),merge_sort(q,mid+1,r);
-    int k=0,i=l,j=mid+1;
-    while(i<=mid&&j<=r)
-    {
-        if(q[i]<=q[j])tmp[k++]=q[i++];
-        else tmp[k++]=q[j++];
-    }
-    while(i<=mid)tmp[k++]=q[i++];
-    while(j<=r)tmp[k++]=q[j++];
-
-
-    for(int i=l,j=0;i<=r;i++,j++)q[i]=tmp[j];//不要写成i=1
-}
-```
-
-**求逆序对**
+**归并排序+求逆序对**（交换重排，根据奇偶性判局面可达（可能是字符串，二维平面，数组序列））
 
 ```c++
 #include<bits/stdc++.h>
@@ -1357,9 +1532,7 @@ int main()
 }
 ```
 
-**逆序对应用**
 
-1. 交换重排，根据奇偶性判局面可达（可能是字符串，二维平面，数组序列）
 
 * * *
 ### 输入输出
@@ -1383,40 +1556,33 @@ int main()
     cin.tie(0);
 }
 ```
-**__int128**
+**__int128**（GCC)
 
 ```c++
-__int128 read()
-{
-    __int128 f=1,w=0;
-    char ch=getchar();
-    while(ch<'0'||ch>'9')
-    {
-        if(ch=='-')
-        f=-1;
-        ch=getchar();
+inline __int128 read(){
+    __int128 x = 0, f = 1;
+    char ch = getchar();
+    while(ch < '0' || ch > '9'){
+        if(ch == '-')
+            f = -1;
+        ch = getchar();
     }
-    while(ch<='9'&&ch>='0')
-    {
-        w=w*10+ch-'0';
-        ch=getchar();
+    while(ch >= '0' && ch <= '9'){
+        x = x * 10 + ch - '0';
+        ch = getchar();
     }
-    return f*w;
+    return x * f;
 }
-
-void print(__int128 x)
-{
-    if(x<0)
-    {
+inline void print(__int128 x){
+    if(x < 0){
         putchar('-');
-        x=-x;
+        x = -x;
     }
-    if(x>9)print(x/10);
-    putchar(x%10+'0');
+    if(x > 9)
+        print(x / 10);
+    putchar(x % 10 + '0');
 }
 ```
-
-
 
 ### 数据结构
 
@@ -1666,6 +1832,17 @@ int main()
     return 0;
 }
 
+/*
+求区间长度S~T的区间最小值
+int l=1,r=0;
+for(int i=s;i<=n;i++){
+		while(l<=r&&sum[q[r]]>=sum[i-s])r--;//发现降序，弹出队尾
+		q[++r]=i-s;
+		while(l<=r&&q[l]<i-t)l++;//超出长度了弹出队首
+		if(l<=r&&sum[i]-sum[q[l]]>=0)return 1;//这行根据题目写
+	}
+
+*/
 ```
 
 #### Trie树
@@ -1727,14 +1904,13 @@ int main()
 **普通并查集**
 
 ```c++
-int find(int x){ return f[x] == x ? x : find(f[x]) ; }
-
-void merge_set(int x,int y){
-	int fx = find(x) , fy = find(y);
-	if(fx!=fy) siz[fy]+=siz[fx] , f[fx]=fy;  // 联通的大小。
+int find(int x)
+{
+    if(f[x]!=x)f[x]=find(f[x]);//求你别忘记打f[x]不然会T
+    return f[x];
 }
 
-void init(){ for(int i = 1 ; i <= n ; i ++ ) f[i] = i , siz[i] = 1 ; }
+void init(){ for(int i = 1 ; i <= n ; i ++ ) f[i] = i , siz[i] = 1 ; }//可能0开始
 ```
 
 **维护距离(向量本质，有向图)**
@@ -1797,51 +1973,29 @@ int main()
 **维护大小**
 
 ```c++
-#include<bits/stdc++.h>
-using namespace std;
-const int N=1e6+10;
-
-
-int n,m;
-int f[N],siz[N];
-int find(int x)
+int find(int a)
 {
-    if(f[x]!=x)f[x]=find(f[x]);
-    return f[x];
+    if (fa[a] != a)
+    {
+        cnt[fa[a]] += cnt[a];   
+        cnt[a] = 0;//清空非祖宗，别忘记
+        return fa[a] = find(fa[a]);//别忘记
+    }
+    else return a;
 }
-int main()
+void merge(int a, int b)
 {
-    scanf("%d%d",&n,&m);
-    for(int i=1;i<=n;i++)//看清题目可能从0开始
+    a = find(a);
+    b = find(b);
+
+    if (fa[a] != fa[b])
     {
-        f[i]=i;
-        siz[i]=1;
+        tmp += ((long long)cnt[fa[a]] * (long long)cnt[fa[b]]);//根据题目算贡献
+        cnt[b] += cnt[fa[a]];
+        cnt[fa[a]] = 0;//清空非祖宗，别忘记
+        fa[a] = b;
+
     }
-    while(m--)
-    {
-        int a,b;
-        char op[2];
-        scanf("%s",op);
-        if(op[0]=='C')
-        {
-            scanf("%d%d",&a,&b);
-            if(find(a)==find(b))continue;//判断一下有没有在同一集合里了
-            siz[find(b)]+=siz[find(a)];//要在合并之前
-            f[find(a)]=find(b);
-        }
-        else if(op[1]=='1')
-        {
-            scanf("%d%d",&a,&b);
-            if(find(a)==find(b))puts("Yes");
-            else puts("No");
-        }
-        else
-        {
-            scanf("%d",&a);
-            printf("%d\n",siz[find(a)]);
-        }
-    }
-    return 0;
 }
 ```
 
@@ -1979,6 +2133,194 @@ int main()
 }
 ```
 
+#### **Multiset实现带修改的最值查询**
+
+```
+
+```
+
+#### 线段树
+
+**普通线段树单点修改**
+
+```c++
+#include<bits/stdc++.h>
+using namespace std;
+typedef long long LL;
+const int N=5e5+10;
+int n,m;
+LL w[N];
+struct Node{
+    int l,r;
+    LL tmax;
+    LL lmax,rmax;
+    LL sum;
+}tr[N*4];
+/*维护更新信息*/
+void pushup(Node &u,Node &l,Node &r){
+    u.sum=l.sum+r.sum;
+    u.lmax=max(l.lmax,l.sum+r.lmax);
+    u.rmax=max(r.rmax,r.sum+l.rmax);
+    u.tmax=max(l.rmax+r.lmax,max(l.tmax,r.tmax));
+}
+
+void pushup(int u){
+    pushup(tr[u],tr[u<<1],tr[u<<1|1]);
+}
+
+void build(int u,int l,int r){
+    if(l==r)tr[u]={l,r,w[r],w[r],w[r],w[r]};//叶子节点
+    else{
+        tr[u]={l,r};//别忘记
+        int mid=(l+r)>>1;
+        build(u<<1,l,mid),build(u<<1|1,mid+1,r);//递归左右区间
+        pushup(u);
+    }
+}
+
+void modify(int u,int x,LL v){
+    if(tr[u].l==x&&tr[u].r==x)tr[u]={x,x,v,v,v,v};//叶子节点
+    else{
+        int mid=(tr[u].l+tr[u].r)>>1;
+        if(x<=mid)modify(u<<1,x,v);
+        else modify(u<<1|1,x,v);
+        pushup(u);
+    }
+}
+/*因为查询也有很多信息要合并所以直接传结构体方便些*/
+Node query(int u,int l,int r){
+    if(tr[u].l>=l&&tr[u].r<=r)return tr[u];//区间被包含
+    else{
+        int mid=(tr[u].l+tr[u].r)>>1;
+        if(r<=mid)return query(u<<1,l,r);
+        else if(l>mid)return query(u<<1|1,l,r);
+        else{
+            auto left=query(u<<1,l,r);
+            auto right=query(u<<1|1,l,r);
+            Node res;
+            pushup(res,left,right);//合并左右子区间答案
+            return res;
+        }
+    }
+}
+int main(){
+    scanf("%d%d",&n,&m);
+    for(int i=1;i<=n;i++)scanf("%lld",&w[i]);
+    build(1,1,n);
+    
+    int k,x,y;
+    while(m--){
+        scanf("%d%d%d",&k,&x,&y);
+        if(k==1){
+            if(x>y)swap(x,y);
+            printf("%lld\n",query(1,x,y).tmax);
+        }
+        else modify(1,x,y);
+    }
+    return 0;
+}
+```
+
+**普通线段树区间修改**
+
+```c++
+#include<bits/stdc++.h>
+using namespace std;
+typedef long long LL;
+const int N=5e5+10;
+int n,m;
+LL w[N];
+struct Node{
+    int l,r;
+    LL sum,add;
+}tr[N*4];
+/*维护更新信息*/
+void pushup(Node &u,Node &l,Node &r){
+    u.sum=l.sum+r.sum;
+}
+
+void pushup(int u){
+    pushup(tr[u],tr[u<<1],tr[u<<1|1]);
+}
+
+void pushdown(int u){
+    auto &root=tr[u],&left=tr[u<<1],&right=tr[u<<1|1];
+    if(root.add){//如果存在延迟标记
+        left.sum+=(LL)(left.r-left.l+1)*root.add;//更新左节点信息
+        right.sum+=(LL)(right.r-right.l+1)*root.add;//更新右节点信息
+        left.add+=root.add;//给左节点打延迟标记
+        right.add+=root.add;//给右节点打延迟标记
+        root.add=0;//清空父节点延迟标记
+    }
+}
+void build(int u, int l, int r)
+{
+    if (l == r) tr[u] = {l, r, w[r], 0};
+    else
+    {
+        tr[u] = {l, r};
+        int mid = l + r >> 1;
+        build(u << 1, l, mid), build(u << 1 | 1, mid + 1, r);
+        pushup(u);
+    }
+}
+
+void modify(int u,int l,int r,int d){
+    if(tr[u].l>=l&&tr[u].r<=r){//完全覆盖
+        tr[u].sum+=(LL)(tr[u].r-tr[u].l+1)*d;//更新节点信息
+        tr[u].add+=d;//给节点打上标记
+    }
+    else{
+        pushdown(u);//下传延迟标记
+        int mid=(tr[u].l+tr[u].r)>>1;
+        if(l<=mid)modify(u<<1,l,r,d);
+        if(r>mid)modify(u<<1|1,l,r,d);
+        pushup(u);//更新节点信息
+    }
+}
+
+LL query(int u,int l,int r){
+    if( tr[u].l >= l && tr[u].r <= r)return tr[u].sum;//区间被包含
+    pushdown(u);//下传延迟标记
+    int mid=(tr[u].l+tr[u].r)>>1;
+    LL sum=0;
+    if(l<=mid)sum=query(u<<1,l,r);
+    if(r>mid)sum+=query(u<<1|1,l,r);
+    return sum;
+}
+
+int main(){
+    scanf("%d%d",&n,&m);
+    for(int i=1;i<=n;i++)scanf("%lld",&w[i]);
+    build(1,1,n);
+    
+    char op[2];
+    int l,r,d;
+    while(m--){
+        scanf("%s%d%d",op,&l,&r);
+        if(*op=='C'){
+            scanf("%d",&d);
+            modify(1,l,r,d);
+        }
+        else printf("%lld\n",query(1,l,r));
+    }
+    return 0;
+}
+
+```
+
+**吉司机线段树**
+
+```
+
+```
+
+**李超线段树**
+
+```
+
+```
+
 
 
 * * *
@@ -1990,7 +2332,7 @@ int main()
 
 1. 数据范围大，数据量小，把数据存到普通数组，排序，二分查找下标，可以得到区间数据数量
 2. 最大求最小，最小求最大
-3. 区间gcd具有单调性
+3. 区间gcd具有单调性，最大平均数，中位数，分数规划
 
 **整数二分**
 
@@ -2131,17 +2473,38 @@ void solve()
 
 **图的存储**
 
-**邻接表**
+**vector邻接表（推荐，但要精确控制大小,TLE就改成链式前向星）**
+
+```c++
+vector<int>v[N];//要精确控制大小，不然容易MLE
+
+void dfs(int u,int fa){
+	f[u][0]=f[u][1]=f[u][2]=1;
+    for(int j:v[u]){
+    	if(j==fa)continue;
+        dfs(j,u);
+        //递归完后开始更新子树，然后一层层向上更新
+    }
+}
+
+for(int i=1;i<=n;i++)v[i].clear();
+
+for(int i=0,a,b;i<n-1;i++){
+    scanf("%d%d",&a,&b);
+    v[a].push_back(b);
+    v[b].push_back(a);
+}
+dfs(1,-1);
+```
+
+**链式前向星**
 
 ```c++
 // 对于每个点k，开一个单链表，存储k所有可以走到的点。h[k]存储这个单链表的头结点，双向图开双倍2*N!
 int h[N], e[N], ne[N], idx;
 
 // 添加一条边a->b
-void add(int a, int b)
-{
-    e[idx] = b, ne[idx] = h[a], h[a] = idx ++ ;
-}
+void add(int a, int b){e[idx] = b, ne[idx] = h[a], h[a] = idx ++ ;}
 
 // 初始化
 idx = 0;
@@ -2158,7 +2521,7 @@ memset(h, -1, sizeof h);
 
 #### DFS
 
-**有多少个连通块(Flood Fill)**
+**有多少个连通块(Flood Fill算法)**
 
 ```c++
 #include<bits/stdc++.h>
@@ -2262,55 +2625,7 @@ int main()
 
 **列出所有解**
 
-**全排列**
-
-```c++
-#include<bits/stdc++.h>
-using namespace std;
-
-
-int n;
-bool vis[30];
-int a[20];
-
-
-void pr()
-{
-    for(int i=1;i<=n;i++)
-    {
-        cout<<setw(5)<<a[i];
-    }
-    cout<<endl;
-}
-void dfs(int x)//x是层数
-{
-    if(x>n)
-    {
-        pr();//超出了n就结束了
-    }
-    for(int i=1;i<=n;i++)
-    {
-        if(!vis[i])
-        {
-            a[x]=i;//第x层是i;
-            vis[i]=1;
-            dfs(x+1);
-            vis[i]=0;//释放回到上一个节点，消去访问记录，其实a[x]也要消去只不过新的值会覆盖
-        }
-        
-    }
-}
-
-int main()
-{
-    cin>>n;
-    dfs(1);
-    return 0;
-}
-
-```
-
-**STL**
+**全排列STL**
 
 ```c++
 //prev_permutation函数可以制造前一个排列，如果已经为第一个，则返回false。
@@ -2347,15 +2662,13 @@ int main()
 
 **组合输出**
 
-```cpp
+```c++
 #include<bits/stdc++.h>
 using namespace std;
-
 
 int n,r;
 int a[50];
 bool vis[50];
-
 
 void pr()
 {
@@ -2363,7 +2676,6 @@ void pr()
     cout<<setw(3)<<a[i];
     cout<<endl;
 }
-
 
 void dfs(int x)
 {
@@ -2583,82 +2895,7 @@ int main()
     return 0;
 }
 ```
-**连通块里多少块**
-
-```c++
-#include<bits/stdc++.h>
-using namespace std;
-int xx[]={0,0,1,-1};
-int yy[]={1,-1,0,0};
-int vis[1005][1005];
-bool mp[1005][1005];
-int ans[1000005];
-int color,cnt,n,m;
-
-
-void bfs(int x, int y)
-{
-    queue<int>h;
-    queue<int>l;
-    h.push(x);l.push(y);
-    vis[x][y]=color;
-    while(!h.empty())
-    {
-        for(int i=0;i<4;i++)
-        {
-            int dx=h.front()+xx[i];
-            int dy=l.front()+yy[i];
-            if(dx>=1&&dx<=n&&dy>=1&&dy<=n&&mp[dx][dy]!=mp[h.front()][l.front()]&&!vis[dx][dy])
-            {
-                h.push(dx);l.push(dy);
-                vis[dx][dy]=color;//颜色标记区分不同的连通块
-            }
-        }
-        h.pop();l.pop();//弹出多少次就有多少格子
-        cnt++;
-    }
-    return;
-}
-int main()
-{
-    cin>>n>>m;
-    for(int i=1;i<=n;i++)
-    {
-        for(int j=1;j<=n;j++)
-        {
-            char ch;
-            cin>>ch;
-            if(ch=='1')mp[i][j]=1;
-            else mp[i][j]=0;
-        }
-    }
-    //如果是确定的起点那下面的直接bfs(sx,sy)即可
-    for(int i=1;i<=n;i++)
-    {
-        for(int j=1;j<=n;j++)
-        {
-            if(!vis[i][j])//排除已经搜索过的连通块
-            {
-                color++;
-                bfs(i,j);
-                ans[color]=cnt;
-                cnt=0;//初始化cnt
-            }
-        }
-    }
-    for(int i=1;i<=m;i++)
-    {
-        int x,y;
-        cin>>x>>y;
-        cout<<ans[vis[x][y]]<<endl;
-    }
-    return 0;
-}
-```
-
-#### **拓扑**
-
-拓扑序列（有向无环图DAG)
+**拓扑序列（有向无环图DAG)**
 
 ```c++
 #include<bits/stdc++.h>
@@ -3096,7 +3333,7 @@ int d[N][N];
 
 void floyd()
 {
-    for(int k=1;k<=n;k++)
+    for(int k=1;k<=n;k++)//先循环k
         for(int i=1;i<=n;i++)
             for(int j=1;j<=n;j++)
                 d[i][j]=min(d[i][j],d[i][k]+d[k][j]);
@@ -3669,41 +3906,42 @@ int main()
 * * *
 ### DP
 
-#### DP思考方式
+#### 参数表
 
-##### 状态表示
+| 参数             | 适用题型                                              | 状态转移                                  | 注意事项                                 |
+| ---------------- | ----------------------------------------------------- | ----------------------------------------- | ---------------------------------------- |
+| 第i个            |                                                       |                                           |                                          |
+| 时间             |                                                       |                                           |                                          |
+| 余数             |                                                       |                                           |                                          |
+| 差值             |                                                       |                                           |                                          |
+| 最大值           | 某个属性不能为0                                       |                                           |                                          |
+| 方向             |                                                       |                                           |                                          |
+| 坐标             | 走地图                                                |                                           | 不一定所有方向都能转移分类，注意出界问题 |
+| 剩余使用次数     |                                                       |                                           |                                          |
+| 轮廓形状         |                                                       |                                           |                                          |
+| 路径状态         |                                                       |                                           |                                          |
+| 区间             | 合并，染色，两端操作，匹配                            |                                           |                                          |
+| 组数             | 分组问题                                              | f[i]\[j]=max(f[i-1]\[j],f[u-1]\[j]+i-u+1) | 利用while等找到新增一组的合法左边界u     |
+| 子集和           | SOSDP                                                 |                                           |                                          |
+| 已匹配数         | 老鼠进洞模型                                          |                                           |                                          |
+| 以某个字符为结尾 | dp\[i]\[j],到i个字符为止，以字符j为结尾的满足条件数量 |                                           |                                          |
+| 子树             |                                                       |                                           |                                          |
+|                  |                                                       |                                           |                                          |
+|                  |                                                       |                                           |                                          |
+|                  |                                                       |                                           |                                          |
 
-###### 集合
 
-1. 维度的确定是最少要用几个维度来唯一确定如：背包有容量和价值表状态，最原始两维度。最长子序列以i结尾，就只要一个。最长公共子序列两个序列，就要两个维度
-2. 所有满足+（题目条件+状态表示的条件）+的集合
 
-###### 属性
+#### 经典模型
 
-1. max(开long long)
-2. min（开long long）
-3. 方案数（直接开unsigned long long防爆）
-4. 具体方案（记录状态转移）
-5. 可达性（用|）
+##### 背包
 
-##### 状态计算
+###### 01背包
 
-###### 划分
+有时候可能二进制枚举/DFS更好
 
-原则：补充不漏
+**二维**
 
-1. 以i-1为倒数第二个（LIS)
-2. 转移来源(数字三角)
-3. 选i与不选i/选几个（背包）
-4. a[i],b[j]是否包含在子序列当中
-
-###### 计算过程
-
-要保证前面的已经计算好了，状态转移不能成环
-
-#### 背包
-##### 01背包
-###### 二维
 ```c++
 #include<bits/stdc++.h>
 using namespace std;
@@ -3734,7 +3972,7 @@ int main()
     
 }
 ```
-###### 一维
+**一维**
 
 ```c++
 #include<bits/stdc++.h>
@@ -3759,8 +3997,9 @@ int main()
 }
 ```
 
-##### 完全背包
-###### 二维
+###### 完全背包
+**二维**
+
 ```c++
 #include<bits/stdc++.h>
 using namespace std;
@@ -3784,7 +4023,7 @@ int main()
     return 0;
     
 ```
-###### 二维优化
+**二维优化**
 
 ```c++
 #include<bits/stdc++.h>
@@ -3809,7 +4048,7 @@ int main()
 }
 ```
 
-###### 一维优化
+**一维优化**
 
 ```c++
 #include<bits/stdc++.h>
@@ -3836,9 +4075,9 @@ int main()
 }
 ```
 
-##### 多重背包
+###### 多重背包
 
-###### 暴力朴素
+**暴力朴素**
 
 ```c++
 #include<bits/stdc++.h>
@@ -3870,7 +4109,7 @@ int main()
 }
 ```
 
-###### 二进制优化
+**二进制优化**
 
 ```c++
 #include<bits/stdc++.h>
@@ -3916,7 +4155,7 @@ int main()
 }
 ```
 
-##### 分组背包
+###### 分组背包
 
 ```c++
 #include<bits/stdc++.h>
@@ -3949,8 +4188,9 @@ int main()
 }
 ```
 
-##### 背包方案数
-###### 二维
+###### 背包方案数
+**二维**
+
 ```C++
 #include<bits/stdc++.h>
 using namespace std;
@@ -3974,7 +4214,8 @@ int main(){
         return 0;
 }
 ```
-###### 一维
+**一维**
+
 ```C++
 #include<bits/stdc++.h>
 using namespace std;
@@ -3997,5 +4238,124 @@ int main()
 }
 ```
 
-#### 
+##### 数位DP
+
+```c++
+void init() // 根据题意做预处理,一般是组合数/dp。
+{
+    for(int i = 0; i <= 9; i ++) // 对第一位初始化
+        f[1][i] = 1;
+
+    // DP过程
+}
+
+int dp(int n)
+{
+    if(!n) return 1;
+    vector<int> num;
+    // 取出每一位数字，可以根据进制转化问题替换 10
+    while(n) num.push_back(n % 10), n /= 10; 
+    n = num.size();
+
+    LL ans = 0;
+    int last = 0;
+    for(int i = n - 1; i >= 0; i --)
+    {
+        int x = num[i];
+
+        // 分类讨论,关注分支(<x,=x)是否存在，操作是否存在
+    }
+
+    return ans;
+}
+```
+
+##### 树形DP
+
+```cp
+#include<bits/stdc++.h>
+using namespace std;
+const int N=6010;
+int n;
+int happy[N];
+int h[N],e[N],ne[N],idx;
+int f[N][2];
+bool has_father[N];
+
+void add(int a,int b){
+    e[idx]=b,ne[idx]=h[a],h[a]=idx++;
+}
+void dfs(int u){
+    f[u][1]=happy[u];//设置初值
+    
+    for(int i=h[u];i!=-1;i=ne[i]){
+        int j=e[i];
+        dfs(j);
+        //递归完后开始更新子树，然后一层层向上更新
+        f[u][0]+=max(f[j][0],f[j][1]);
+        f[u][1]+=f[j][0];
+    }
+}
+int main(){
+    scanf("%d",&n);
+    for(int i=1;i<=n;i++)scanf("%d",&happy[i]);
+    
+    memset(h,-1,sizeof h);
+    for(int i=0;i<n-1;i++){
+        int a,b;
+        scanf("%d%d",&a,&b);
+        has_father[a]=true;
+        add(b,a);
+    }
+    int root=1;
+    while(has_father[root])root++;//找根节点
+    dfs(root);
+    printf("%d\n",max(f[root][0],f[root][1]));
+    return 0;
+}
+```
+
+**vector存图**
+
+```c++
+#include<bits/stdc++.h>
+using namespace std;
+const int N=1e5+10,mod=998244353;
+typedef long long LL;
+int n;
+vector<int>v[N];//要精确控制大小，不然容易MLE
+LL f[N][3];//要精确控制大小，不然容易MLE
+
+void dfs(int u,int fa){
+	f[u][0]=f[u][1]=f[u][2]=1;
+    for(int j:v[u]){
+    	if(j==fa)continue;
+        dfs(j,u);
+        //递归完后开始更新子树，然后一层层向上更新
+        f[u][0]=f[u][0]*(f[j][0]+f[j][1])%mod;
+        f[u][1]=f[u][1]*(f[j][0]+f[j][1]+f[j][2])%mod;
+        f[u][2]=f[u][2]*f[j][0]%mod;
+    }
+    f[u][1]-=f[u][2];
+    if(f[u][1]<0)f[u][1]+=mod;
+}
+int main(){
+	int T;
+	while(~scanf("%d",&T)){
+		while(T--){
+			scanf("%d",&n);
+			for(int i=1;i<=n;i++)v[i].clear();
+			
+		    for(int i=0,a,b;i<n-1;i++){
+		        scanf("%d%d",&a,&b);
+		        v[a].push_back(b);
+		        v[b].push_back(a);
+		    }
+		   	dfs(1,-1);
+		    printf("%lld\n",(f[1][0]+f[1][1])%mod);
+		}
+	}
+    return 0;
+}
+```
 
